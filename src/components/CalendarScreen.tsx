@@ -5,12 +5,21 @@ import { useRecords } from '../context/RecordContext';
 
 const CalendarScreen: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const { records, goalCalls, setGoalCalls } = useRecords();
+  const { records, goalCalls, setGoalCalls, updateRecord, addRecord } = useRecords();
 
   // 목표 마감일 상태 추가 (기본값: 올해 12월 31일)
   const thisYear = new Date().getFullYear();
   const [goalDeadline, setGoalDeadline] = useState<string>(`${thisYear}-12-31`);
   const [showGoalModal, setShowGoalModal] = useState(false);
+
+  // 날짜별 입력/수정 모달 상태
+  const [editDate, setEditDate] = useState<Date | null>(null);
+  const [editFields, setEditFields] = useState({
+    calls: '',
+    amount: '',
+    image: undefined as string | undefined,
+  });
+  const [editImagePreview, setEditImagePreview] = useState<string | undefined>(undefined);
 
   // 월요일 시작 요일 배열
   const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -43,6 +52,67 @@ const CalendarScreen: React.FC = () => {
     const firstDay = getDay(monthStart) === 0 ? 6 : getDay(monthStart) - 1; // 월요일=0, 일요일=6
     const prefix = Array(firstDay).fill(null);
     return [...prefix, ...daysInMonth];
+  };
+
+  // 날짜 클릭 시 입력/수정 모달 오픈
+  const handleDateClick = (date: Date) => {
+    const record = getRecordForDate(date);
+    setEditDate(date);
+    setEditFields({
+      calls: record ? String(record.calls) : '',
+      amount: record ? String(record.amount) : '',
+      image: record?.image,
+    });
+    setEditImagePreview(record?.image);
+  };
+
+  // 입력값 변경
+  const handleEditFieldChange = (field: string, value: string) => {
+    setEditFields(prev => ({ ...prev, [field]: value }));
+  };
+
+  // 사진 교체
+  const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEditImagePreview(reader.result as string);
+        setEditFields(prev => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 사진 삭제
+  const handleEditImageDelete = () => {
+    setEditImagePreview(undefined);
+    setEditFields(prev => ({ ...prev, image: undefined }));
+  };
+
+  // 저장 버튼 클릭 시
+  const handleEditSave = () => {
+    if (!editDate) return;
+    const dateStr = format(editDate, 'yyyy-MM-dd');
+    const record = getRecordForDate(editDate);
+    if (record) {
+      updateRecord(record.id, {
+        calls: parseInt(editFields.calls) || 0,
+        amount: parseInt(editFields.amount) || 0,
+        image: editFields.image,
+      });
+    } else {
+      addRecord({
+        id: Date.now().toString(),
+        date: dateStr,
+        calls: parseInt(editFields.calls) || 0,
+        amount: parseInt(editFields.amount) || 0,
+        image: editFields.image,
+      });
+    }
+    setEditDate(null);
+    setEditFields({ calls: '', amount: '', image: undefined });
+    setEditImagePreview(undefined);
   };
 
   return (
@@ -88,9 +158,10 @@ const CalendarScreen: React.FC = () => {
             return (
               <div
                 key={(day as Date).toString()}
-                className={`min-h-[60px] p-1 border border-gray-700 rounded-lg ${
-                  isToday ? 'bg-yellow-400/20 border-yellow-400' : 'bg-gray-700'
+                className={`min-h-[60px] p-1 border border-gray-700 rounded-lg cursor-pointer transition-colors ${
+                  isToday ? 'bg-yellow-400/20 border-yellow-400' : 'bg-gray-700 hover:bg-gray-600'
                 }`}
+                onClick={() => handleDateClick(day as Date)}
               >
                 <div className="text-xs text-gray-400 mb-1">
                   {format(day as Date, 'd')}
@@ -189,6 +260,86 @@ const CalendarScreen: React.FC = () => {
               <button
                 onClick={() => setShowGoalModal(false)}
                 className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 날짜별 입력/수정 모달 */}
+      {editDate && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md mx-auto relative">
+            <button
+              onClick={() => setEditDate(null)}
+              className="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
+            >
+              ×
+            </button>
+            <h3 className="text-lg font-bold mb-4">{format(editDate, 'yyyy-MM-dd')} 기록 입력/수정</h3>
+            {editImagePreview && (
+              <div className="mb-4">
+                <img
+                  src={editImagePreview}
+                  alt="기록 사진 미리보기"
+                  className="w-full max-h-60 object-contain rounded-lg border border-gray-700"
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleEditImageDelete}
+                    className="flex-1 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                  >
+                    사진 삭제
+                  </button>
+                  <label className="flex-1 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm text-center cursor-pointer">
+                    사진 교체
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleEditImageChange}
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+            {!editImagePreview && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">사진 추가</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleEditImageChange}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-yellow-400"
+                />
+              </div>
+            )}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">콜 수</label>
+                <input
+                  type="number"
+                  value={editFields.calls}
+                  onChange={e => handleEditFieldChange('calls', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-yellow-400"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">금액 (원)</label>
+                <input
+                  type="number"
+                  value={editFields.amount}
+                  onChange={e => handleEditFieldChange('amount', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-yellow-400"
+                  placeholder="0"
+                />
+              </div>
+              <button
+                onClick={handleEditSave}
+                className="w-full mt-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold rounded-lg transition-colors"
               >
                 저장
               </button>

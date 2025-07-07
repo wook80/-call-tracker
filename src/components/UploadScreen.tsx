@@ -23,6 +23,7 @@ const UploadScreen: React.FC = () => {
     amount: '',
     distance: '',
   });
+  const [showModal, setShowModal] = useState(false);
 
   // OCR로 텍스트에서 데이터 추출
   const extractFields = (text: string) => {
@@ -49,6 +50,7 @@ const UploadScreen: React.FC = () => {
       const reader = new FileReader();
       reader.onload = () => {
         setImagePreview(reader.result as string);
+        setShowModal(true);
         Tesseract.recognize(reader.result as string, 'kor+eng', { logger: m => {} })
           .then(({ data: { text } }) => {
             setOcrResult(text);
@@ -85,6 +87,7 @@ const UploadScreen: React.FC = () => {
     setImagePreview(null);
     setFields({ date: '', calls: '', amount: '', distance: '' });
     setOcrResult('');
+    setShowModal(false);
     alert('기록이 저장되었습니다!');
   };
 
@@ -179,7 +182,7 @@ const UploadScreen: React.FC = () => {
             <p className="text-yellow-400">여기에 사진을 놓으세요!</p>
           ) : (
             <div>
-              <p className="text-gray-300 mb-2">사진을 드래그하거나 클릭하여 업로드</p>
+              <p className="text-gray-300 mb-2">사진을 클릭하여 업로드</p>
               <p className="text-sm text-gray-500">JPG, PNG, GIF 파일 지원</p>
             </div>
           )}
@@ -187,17 +190,22 @@ const UploadScreen: React.FC = () => {
         {loading && <div className="mt-4 text-yellow-400">사진에서 글자를 인식 중입니다...</div>}
       </div>
 
-      {/* 미리보기 및 입력값 확인/수정 */}
-      {imagePreview && (
-        <div className="bg-gray-800 rounded-lg p-4">
-          <h3 className="text-lg font-bold mb-4">입력값 확인 및 수정</h3>
-          <div className="flex flex-col md:flex-row gap-4">
+      {/* 전체 화면(모달) 미리보기 및 입력값 확인/수정 */}
+      {showModal && imagePreview && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-4 w-full max-w-md mx-auto relative">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
+            >
+              ×
+            </button>
             <img
               src={imagePreview}
               alt="업로드된 기록"
-              className="w-full max-w-xs h-auto object-contain rounded-lg border border-gray-700"
+              className="w-full max-h-[60vh] object-contain rounded-lg border border-gray-700 mb-4"
             />
-            <div className="flex-1 space-y-3">
+            <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium mb-1">날짜</label>
                 <input
@@ -242,17 +250,17 @@ const UploadScreen: React.FC = () => {
                 onClick={handleSave}
                 className="w-full mt-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold rounded-lg transition-colors"
               >
-                저장
+                등록
               </button>
             </div>
+            {ocrResult && (
+              <div className="mt-4 text-xs text-gray-400 whitespace-pre-wrap">
+                <b>OCR 인식 결과:</b>
+                <br />
+                {ocrResult}
+              </div>
+            )}
           </div>
-          {ocrResult && (
-            <div className="mt-4 text-xs text-gray-400 whitespace-pre-wrap">
-              <b>OCR 인식 결과:</b>
-              <br />
-              {ocrResult}
-            </div>
-          )}
         </div>
       )}
     </div>
