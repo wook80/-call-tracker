@@ -85,6 +85,7 @@ const StatsScreen: React.FC = () => {
   // 주/월 비교 데이터
   const currentPeriodTotal = currentData.reduce((sum, day) => sum + day.calls, 0);
   const currentPeriodAmount = currentData.reduce((sum, day) => sum + day.amount, 0);
+  const currentPeriodAvgPerCall = currentPeriodTotal > 0 ? Math.round(currentPeriodAmount / currentPeriodTotal) : 0;
 
   // 이전 주/월 데이터 (임시로 0으로 설정)
   const previousPeriodTotal = 0;
@@ -183,7 +184,7 @@ const StatsScreen: React.FC = () => {
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
         <h3 className="text-lg font-bold">주/월 비교</h3>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="bg-gray-700 rounded-lg p-3">
             <div className="text-sm text-gray-400 mb-1">이번 {selectedPeriod === 'week' ? '주' : '달'} 콜</div>
             <div className="text-xl font-bold text-green-400">{currentPeriodTotal}콜</div>
@@ -202,6 +203,11 @@ const StatsScreen: React.FC = () => {
                 {amountDiff > 0 ? '↗' : '↘'} {Math.abs(amountDiff).toLocaleString()}원
               </div>
             )}
+          </div>
+
+          <div className="bg-gray-700 rounded-lg p-3">
+            <div className="text-sm text-gray-400 mb-1">콜당 평균</div>
+            <div className="text-xl font-bold text-blue-400">{currentPeriodAvgPerCall.toLocaleString()}원</div>
           </div>
         </div>
       </div>

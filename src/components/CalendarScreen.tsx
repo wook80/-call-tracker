@@ -5,11 +5,7 @@ import { useRecords } from '../context/RecordContext';
 
 const CalendarScreen: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const { records, goalCalls, setGoalCalls, updateRecord, addRecord } = useRecords();
-
-  // 목표 마감일 상태 추가 (기본값: 올해 12월 31일)
-  const thisYear = new Date().getFullYear();
-  const [goalDeadline, setGoalDeadline] = useState<string>(`${thisYear}-12-31`);
+  const { records, goalCalls, setGoalCalls, goalDeadline, setGoalDeadline, updateRecord, addRecord } = useRecords();
   const [showGoalModal, setShowGoalModal] = useState(false);
 
   // 날짜별 입력/수정 모달 상태
