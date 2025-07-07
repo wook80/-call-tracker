@@ -13,6 +13,8 @@ interface RecordContextType {
   setRecords: React.Dispatch<React.SetStateAction<Record[]>>;
   goalCalls: number;
   setGoalCalls: React.Dispatch<React.SetStateAction<number>>;
+  goalDeadline: string;
+  setGoalDeadline: React.Dispatch<React.SetStateAction<string>>;
   addRecord: (record: Record) => void;
   updateRecord: (id: string, updates: Partial<Record>) => void;
   deleteRecord: (id: string) => void;
@@ -31,17 +33,22 @@ export const useRecords = () => {
 export const RecordProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [records, setRecords] = useState<Record[]>([]);
   const [goalCalls, setGoalCalls] = useState(1000);
+  const thisYear = new Date().getFullYear();
+  const [goalDeadline, setGoalDeadline] = useState<string>(`${thisYear}-12-31`);
 
   // 로컬 스토리지에서 데이터 로드
   useEffect(() => {
     const savedRecords = localStorage.getItem('call-tracker-records');
     const savedGoal = localStorage.getItem('call-tracker-goal');
-    
+    const savedDeadline = localStorage.getItem('call-tracker-deadline');
     if (savedRecords) {
       setRecords(JSON.parse(savedRecords));
     }
     if (savedGoal) {
       setGoalCalls(JSON.parse(savedGoal));
+    }
+    if (savedDeadline) {
+      setGoalDeadline(savedDeadline);
     }
   }, []);
 
@@ -53,6 +60,10 @@ export const RecordProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     localStorage.setItem('call-tracker-goal', JSON.stringify(goalCalls));
   }, [goalCalls]);
+
+  useEffect(() => {
+    localStorage.setItem('call-tracker-deadline', goalDeadline);
+  }, [goalDeadline]);
 
   const addRecord = (record: Record) => {
     setRecords(prev => [...prev, record]);
@@ -73,6 +84,8 @@ export const RecordProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setRecords,
     goalCalls,
     setGoalCalls,
+    goalDeadline,
+    setGoalDeadline,
     addRecord,
     updateRecord,
     deleteRecord,
