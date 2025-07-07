@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
   Chart as ChartJS,
@@ -26,13 +26,13 @@ const StatsScreen: React.FC = () => {
   const { records } = useRecords();
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month'>('week');
 
-  // 주간/월간 데이터 계산
+  // 주간/월간 데이터 계산 (수요일~화요일)
   const getWeekData = () => {
     const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // 월요일부터 시작
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    // 수요일=3, weekStartsOn: 3
+    const weekStart = startOfWeek(now, { weekStartsOn: 3 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 3 });
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
-    
     return days.map(day => {
       const dateStr = format(day, 'yyyy-MM-dd');
       const record = records.find(r => r.date === dateStr);
@@ -50,7 +50,6 @@ const StatsScreen: React.FC = () => {
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-    
     return days.map(day => {
       const dateStr = format(day, 'yyyy-MM-dd');
       const record = records.find(r => r.date === dateStr);
@@ -63,25 +62,21 @@ const StatsScreen: React.FC = () => {
     });
   };
 
-  // 요일별 통계
+  // 요일별 통계 (수~화)
+  const dayNames = ['수', '목', '금', '토', '일', '월', '화'];
   const getDayOfWeekStats = () => {
-    const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
-    const dayStats = dayNames.map(day => {
+    return dayNames.map((day, idx) => {
       const dayRecords = records.filter(record => {
         const recordDate = new Date(record.date);
-        const dayOfWeek = getDay(recordDate);
-        const koreanDay = dayNames[dayOfWeek === 0 ? 6 : dayOfWeek - 1];
-        return koreanDay === day;
+        // 수요일=3, ... 화요일=2
+        const dayOfWeek = (getDay(recordDate) + 4) % 7; // 수요일=0, 목=1, ... 화=6
+        return dayOfWeek === idx;
       });
-      
       const totalCalls = dayRecords.reduce((sum, r) => sum + r.calls, 0);
       const totalAmount = dayRecords.reduce((sum, r) => sum + r.amount, 0);
       const avgCalls = dayRecords.length > 0 ? Math.round(totalCalls / dayRecords.length) : 0;
-      
       return { day, totalCalls, totalAmount, avgCalls, recordCount: dayRecords.length };
     });
-    
-    return dayStats;
   };
 
   const currentData = selectedPeriod === 'week' ? getWeekData() : getMonthData();

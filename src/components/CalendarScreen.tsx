@@ -116,7 +116,7 @@ const CalendarScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full p-4 space-y-4">
+    <div className="flex flex-col h-full p-4 space-y-4 overflow-y-auto pb-32">
       {/* 헤더 - 월 이동 */}
       <div className="flex justify-between items-center bg-gray-800 rounded-lg p-4">
         <button
