@@ -1,24 +1,21 @@
 import React, { useState } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useRecords } from '../context/RecordContext';
-
-interface Record {
-  id: string;
-  date: string;
-  calls: number;
-  amount: number;
-  image?: string;
-}
 
 const CalendarScreen: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const { records, goalCalls, setGoalCalls } = useRecords();
 
-  // 목표 설정 모달
+  // 목표 마감일 상태 추가 (기본값: 올해 12월 31일)
+  const thisYear = new Date().getFullYear();
+  const [goalDeadline, setGoalDeadline] = useState<string>(`${thisYear}-12-31`);
   const [showGoalModal, setShowGoalModal] = useState(false);
 
-  // 현재 월의 모든 날짜 생성
+  // 월요일 시작 요일 배열
+  const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  // 현재 월의 모든 날짜 생성 (월요일 시작)
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -30,13 +27,22 @@ const CalendarScreen: React.FC = () => {
   // 목표 대비 현황 계산
   const totalCalls = records.reduce((sum, record) => sum + record.calls, 0);
   const remainingCalls = goalCalls - totalCalls;
-  const remainingDays = Math.ceil((new Date(2024, 11, 31).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+  const today = new Date();
+  const deadlineDate = parseISO(goalDeadline);
+  const remainingDays = Math.max(0, Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
   const averageCallsPerDay = remainingDays > 0 ? Math.ceil(remainingCalls / remainingDays) : 0;
 
   // 특정 날짜의 기록 가져오기
   const getRecordForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     return records.find(record => record.date === dateStr);
+  };
+
+  // 월요일 시작 달력 그리드 만들기
+  const getCalendarGrid = () => {
+    const firstDay = getDay(monthStart) === 0 ? 6 : getDay(monthStart) - 1; // 월요일=0, 일요일=6
+    const prefix = Array(firstDay).fill(null);
+    return [...prefix, ...daysInMonth];
   };
 
   return (
@@ -62,30 +68,32 @@ const CalendarScreen: React.FC = () => {
 
       {/* 달력 */}
       <div className="bg-gray-800 rounded-lg p-4">
-        {/* 요일 헤더 */}
+        {/* 요일 헤더 (월요일 시작) */}
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {['일', '월', '화', '수', '목', '금', '토'].map(day => (
+          {weekDays.map(day => (
             <div key={day} className="text-center text-sm font-medium text-gray-400 py-2">
               {day}
             </div>
           ))}
         </div>
 
-        {/* 날짜 그리드 */}
+        {/* 날짜 그리드 (월요일 시작) */}
         <div className="grid grid-cols-7 gap-1">
-          {daysInMonth.map(day => {
-            const record = getRecordForDate(day);
-            const isToday = isSameDay(day, new Date());
-            
+          {getCalendarGrid().map((day, idx) => {
+            if (!day) {
+              return <div key={idx} />;
+            }
+            const record = getRecordForDate(day as Date);
+            const isToday = isSameDay(day as Date, new Date());
             return (
               <div
-                key={day.toString()}
+                key={(day as Date).toString()}
                 className={`min-h-[60px] p-1 border border-gray-700 rounded-lg ${
                   isToday ? 'bg-yellow-400/20 border-yellow-400' : 'bg-gray-700'
                 }`}
               >
                 <div className="text-xs text-gray-400 mb-1">
-                  {format(day, 'd')}
+                  {format(day as Date, 'd')}
                 </div>
                 {record && (record.calls > 0 || record.amount > 0) && (
                   <div className="text-xs">
@@ -132,6 +140,10 @@ const CalendarScreen: React.FC = () => {
             <span>하루 평균:</span>
             <span className="font-bold text-blue-400">{averageCallsPerDay}콜</span>
           </div>
+          <div className="flex justify-between">
+            <span>목표 마감일:</span>
+            <span className="font-bold text-gray-300">{goalDeadline}</span>
+          </div>
         </div>
 
         {/* 진행률 바 */}
@@ -147,14 +159,26 @@ const CalendarScreen: React.FC = () => {
       {showGoalModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 w-80">
-            <h3 className="text-lg font-bold mb-4">목표 콜 수 설정</h3>
-            <input
-              type="number"
-              value={goalCalls}
-              onChange={(e) => setGoalCalls(parseInt(e.target.value) || 0)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-yellow-400 mb-4"
-              placeholder="목표 콜 수"
-            />
+            <h3 className="text-lg font-bold mb-4">목표 설정</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">목표 콜 수</label>
+              <input
+                type="number"
+                value={goalCalls}
+                onChange={(e) => setGoalCalls(parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-yellow-400"
+                placeholder="목표 콜 수"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">목표 마감일</label>
+              <input
+                type="date"
+                value={goalDeadline}
+                onChange={(e) => setGoalDeadline(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-yellow-400"
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowGoalModal(false)}
